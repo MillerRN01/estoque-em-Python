@@ -1,0 +1,6 @@
+# Dentro da pasta do projeto, criar as seguintes pastas:
+mkdir templates
+mkdir static
+mkdir media
+mkdir media/produtos
+mkdir media/notas_fiscais
