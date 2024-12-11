@@ -1,0 +1,152 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.db.models import Q
+from .models import Produto, Categoria, Entrada, Saida, LogAtividade
+from .forms import ProdutoForm, EntradaForm, SaidaForm, UserRegistrationForm
+
+def is_admin(user):
+    return user.is_superuser
+
+@login_required
+def catalogo(request):
+    categorias = Categoria.objects.all()
+    categoria_slug = request.GET.get('categoria')
+    busca = request.GET.get('busca', '')
+    
+    produtos = Produto.objects.all()
+    
+    if categoria_slug:
+        produtos = produtos.filter(categoria__slug=categoria_slug)
+    
+    if busca:
+        produtos = produtos.filter(
+            Q(nome__icontains=busca) |
+            Q(codigo_barras__icontains=busca)
+        )
+    
+    context = {
+        'categorias': categorias,
+        'produtos': produtos,
+        'categoria_atual': categoria_slug,
+        'busca': busca
+    }
+    return render(request, 'inventario/catalogo.html', context)
+
+@login_required
+@user_passes_test(is_admin)
+def adicionar_produto(request):
+    if request.method == 'POST':
+        form = ProdutoForm(request.POST, request.FILES)
+        if form.is_valid():
+            produto = form.save()
+            LogAtividade.objects.create(
+                usuario=request.user,
+                tipo_acao='criar',
+                descricao=f'Produto {produto.nome} cadastrado'
+            )
+            messages.success(request, 'Produto adicionado com sucesso!')
+            return redirect('inventario:catalogo')
+    else:
+        form = ProdutoForm()
+    
+    return render(request, 'inventario/produto_form.html', {'form': form})
+
+# ... continuação das views anteriores ...
+
+@login_required
+def registrar_entrada(request):
+    if request.method == 'POST':
+        form = EntradaForm(request.POST, request.FILES)
+        if form.is_valid():
+            entrada = form.save(commit=False)
+            entrada.usuario = request.user
+            entrada.save()
+            
+            # Atualizar quantidade do produto
+            produto = entrada.produto
+            produto.quantidade += entrada.quantidade
+            produto.save()
+            
+            # Registrar log
+            LogAtividade.objects.create(
+                usuario=request.user,
+                tipo_acao='entrada',
+                descricao=f'Entrada de {entrada.quantidade} unidades de {produto.nome}'
+            )
+            
+            messages.success(request, 'Entrada registrada com sucesso!')
+            return redirect('inventario:catalogo')
+    else:
+        form = EntradaForm()
+    
+    return render(request, 'inventario/entrada_form.html', {'form': form})
+
+@login_required
+def registrar_saida(request):
+    if request.method == 'POST':
+        form = SaidaForm(request.POST)
+        if form.is_valid():
+            saida = form.save(commit=False)
+            saida.usuario = request.user
+            
+            # Verificar e atualizar estoque
+            produto = saida.produto
+            if saida.quantidade <= produto.quantidade:
+                produto.quantidade -= saida.quantidade
+                produto.save()
+                saida.save()
+                
+                # Registrar log
+                LogAtividade.objects.create(
+                    usuario=request.user,
+                    tipo_acao='saida',
+                    descricao=f'Saída de {saida.quantidade} unidades de {produto.nome}'
+                )
+                
+                messages.success(request, 'Saída registrada com sucesso!')
+                return redirect('inventario:catalogo')
+            else:
+                messages.error(request, 'Quantidade insuficiente em estoque!')
+    else:
+        form = SaidaForm()
+    
+    return render(request, 'inventario/saida_form.html', {'form': form})
+
+@login_required
+def relatorio_movimentacoes(request):
+    categoria_id = request.GET.get('categoria')
+    data_inicio = request.GET.get('data_inicio')
+    data_fim = request.GET.get('data_fim')
+    
+    entradas = Entrada.objects.all()
+    saidas = Saida.objects.all()
+    
+    if categoria_id:
+        entradas = entradas.filter(produto__categoria_id=categoria_id)
+        saidas = saidas.filter(produto__categoria_id=categoria_id)
+    
+    if data_inicio:
+        entradas = entradas.filter(data__gte=data_inicio)
+        saidas = saidas.filter(data__gte=data_inicio)
+    
+    if data_fim:
+        entradas = entradas.filter(data__lte=data_fim)
+        saidas = saidas.filter(data__lte=data_fim)
+    
+    context = {
+        'entradas': entradas,
+        'saidas': saidas,
+        'categorias': Categoria.objects.all(),
+        'categoria_selecionada': categoria_id,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim
+    }
+    
+    return render(request, 'inventario/relatorio_movimentacoes.html', context)
+
+@login_required
+@user_passes_test(is_admin)
+def log_atividades(request):
+    logs = LogAtividade.objects.select_related('usuario').all()
+    return render(request, 'inventario/log_atividades.html', {'logs': logs})
