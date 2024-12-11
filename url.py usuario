@@ -1,0 +1,15 @@
+from django.urls import path
+from . import views
+
+app_name = 'inventario'
+
+urlpatterns = [
+    path('', views.catalogo, name='catalogo'),
+    path('produto/adicionar/', views.adicionar_produto, name='adicionar_produto'),
+    path('produto/<int:pk>/editar/', views.editar_produto, name='editar_produto'),
+    path('produto/<int:pk>/remover/', views.remover_produto, name='remover_produto'),
+    path('entrada/registrar/', views.registrar_entrada, name='registrar_entrada'),
+    path('saida/registrar/', views.registrar_saida, name='registrar_saida'),
+    path('relatorio/movimentacoes/', views.relatorio_movimentacoes, name='relatorio_movimentacoes'),
+    path('log-atividades/', views.log_atividades, name='log_atividades'),
+]
