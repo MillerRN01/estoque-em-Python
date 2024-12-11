@@ -1,0 +1,54 @@
+from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from .models import Produto, Entrada, Saida, Categoria
+
+class UserRegistrationForm(UserCreationForm):
+    email = forms.EmailField()
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password1', 'password2']
+
+class ProdutoForm(forms.ModelForm):
+    class Meta:
+        model = Produto
+        fields = ['nome', 'categoria', 'descricao', 'quantidade', 
+                 'quantidade_minima', 'preco_custo', 'imagem', 
+                 'codigo_barras']
+        widgets = {
+            'descricao': forms.Textarea(attrs={'rows': 3}),
+        }
+
+class EntradaForm(forms.ModelForm):
+    class Meta:
+        model = Entrada
+        fields = ['produto', 'quantidade', 'nota_fiscal', 'observacao']
+        widgets = {
+            'observacao': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Organiza produtos por categoria no dropdown
+        self.fields['produto'].queryset = Produto.objects.all().order_by('categoria', 'nome')
+
+class SaidaForm(forms.ModelForm):
+    class Meta:
+        model = Saida
+        fields = ['produto', 'quantidade', 'destino', 'observacao']
+        widgets = {
+            'observacao': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        produto = cleaned_data.get('produto')
+        quantidade = cleaned_data.get('quantidade')
+
+        if produto and quantidade:
+            if quantidade > produto.quantidade:
+                raise forms.ValidationError(
+                    f"Quantidade indisponível. Estoque atual: {produto.quantidade}"
+                )
+        return cleaned_data
