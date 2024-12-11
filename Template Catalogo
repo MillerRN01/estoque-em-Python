@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}Catálogo - Sistema de Controle de Estoque{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Sidebar Categorias -->
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-tags"></i> Categorias
+                </h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{% url 'inventario:catalogo' %}" 
+                   class="list-group-item list-group-item-action {% if not categoria_atual %}active{% endif %}">
+                    <i class="fas fa-boxes"></i> Todas as Categorias
+                </a>
+                {% for cat in categorias %}
+                <a href="?categoria={{ cat.slug }}" 
+                   class="list-group-item list-group-item-action {% if categoria_atual == cat.slug %}active{% endif %}">
+                    {% if cat.icone %}
+                    <i class="fas {{ cat.icone }}"></i>
+                    {% endif %}
+                    {{ cat.nome }}
+                    <span class="badge bg-secondary float-end">
+                        {{ cat.produto_set.count }}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Conteúdo Principal -->
+    <div class="col-md-9">
+        <!-- Barra de Busca e Filtros -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    {% if categoria_atual %}
+                    <input type="hidden" name="categoria" value="{{ categoria_atual }}">
+                    {% endif %}
+                    
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <input type="text" name="busca" class="form-control" 
+                                   placeholder="Buscar produtos..." value="{{ busca }}">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {% if user.is_superuser %}
+                    <div class="col-md-4">
+                        <a href="{% url 'inventario:adicionar_produto' %}" class="btn btn-success w-100">
+                            <i class="fas fa-plus"></i> Novo Produto
+                        </a>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- Grid de Produtos -->
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for produto in produtos %}
+            <div class="col">
+                <div class="card h-100">
+                    {% if produto.imagem %}
+                    <img src="{{ produto.imagem.url }}" class="card-img-top" 
+                         alt="{{ produto.nome }}" style="height: 200px; object-fit: contain;">
+                    {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+                         style="height: 200px;">
+                        <i class="fas fa-box fa-3x text-muted"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="card-body">
+                        <h5 class="card-title">{{ produto.nome }}</h5>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                <i class="fas {{ produto.categoria.icone }}"></i>
+                                {{ produto.categoria.nome }}
+                            </small>
+                        </p>
+                        <p class="card-text">
+                            Quantidade: 
+                            <span class="badge {% if produto.esta_em_baixo_estoque %}bg-danger{% else %}bg-success{% endif %}">
+                                {{ produto.quantidade }}
+                            </span>
+                        </p>
+                        {% if produto.codigo_barras %}
+                        <p class="card-text">
+                            <small class="text-muted">
+                                <i class="fas fa-barcode"></i> {{ produto.codigo_barras }}
+                            </small>
+                        </p>
+                        {% endif %}
+                    </div>
+                    
+                    {% if user.is_superuser %}
+                    <div class="card-footer">
+                        <div class="btn-group w-100">
+                            <a href="{% url 'inventario:editar_produto' produto.pk %}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-edit"></i> Editar
+                            </a>
+                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteModal{{ produto.pk }}">
+                                <i class="fas fa-trash"></i> Remover
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Modal de Confirmação de Remoção -->
+                    <div class="modal fade" id="deleteModal{{ produto.pk }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Confirmar Remoção</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    Tem certeza que deseja remover o produto "{{ produto.nome }}"?
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <form action="{% url 'inventario:remover_produto' produto.pk %}" method="post">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger">Confirmar Remoção</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Nenhum produto encontrado.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
