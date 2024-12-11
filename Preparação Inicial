@@ -1,0 +1,33 @@
+# 1. Criar e ativar ambiente virtual
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+
+# 2. Instalar dependências
+pip install -r requirements.txt
+
+# 3. Criar arquivo .env na raiz do projeto
+DEBUG=True
+SECRET_KEY=sua-chave-secreta-aqui
+DB_NAME=sistema_estoque
+DB_USER=seu_usuario
+DB_PASSWORD=sua_senha
+DB_HOST=localhost
+DB_PORT=3306
+
+# 4. Criar banco de dados MySQL
+mysql -u root -p
+CREATE DATABASE sistema_estoque CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+# 5. Realizar migrações
+python manage.py makemigrations
+python manage.py migrate
+
+# 6. Criar superusuário
+python manage.py createsuperuser
+
+# 7. Criar categorias iniciais
+python manage.py criar_categorias
+
+# 8. Iniciar servidor
+python manage.py runserver
