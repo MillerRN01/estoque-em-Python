@@ -1,0 +1,9 @@
+sistema_estoque/
+│
+├── venv/                   # Ambiente virtual
+├── sistema/               # Projeto Django
+│   ├── inventario/        # Aplicação principal
+│   ├── static/            # Arquivos estáticos
+│   ├── media/            # Arquivos uploadados
+│   └── templates/        # Templates HTML
+└── requirements.txt      # Dependências do projeto
