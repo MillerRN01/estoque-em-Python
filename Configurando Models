@@ -1,0 +1,82 @@
+from django.db import models
+from django.contrib.auth.models import User
+from django.utils import timezone
+from django.urls import reverse
+
+class Categoria(models.Model):
+    nome = models.CharField(max_length=100)
+    descricao = models.TextField(blank=True)
+    slug = models.SlugField(unique=True)
+    icone = models.CharField(max_length=50, blank=True)
+    ordem = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['ordem', 'nome']
+        verbose_name = 'Categoria'
+        verbose_name_plural = 'Categorias'
+    
+    def __str__(self):
+        return self.nome
+
+    def get_absolute_url(self):
+        return reverse('inventario:catalogo_categoria', kwargs={'slug': self.slug})
+
+class Produto(models.Model):
+    nome = models.CharField(max_length=200)
+    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)
+    descricao = models.TextField(blank=True)
+    quantidade = models.IntegerField(default=0)
+    quantidade_minima = models.IntegerField(default=5)
+    preco_custo = models.DecimalField(max_digits=10, decimal_places=2)
+    imagem = models.ImageField(upload_to='produtos/', blank=True, null=True)
+    codigo_barras = models.CharField(max_length=50, blank=True)
+    data_cadastro = models.DateTimeField(auto_now_add=True)
+    ultima_atualizacao = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.nome
+
+    def esta_em_baixo_estoque(self):
+        return self.quantidade <= self.quantidade_minima
+
+class Entrada(models.Model):
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
+    quantidade = models.IntegerField()
+    data = models.DateTimeField(default=timezone.now)
+    nota_fiscal = models.FileField(upload_to='notas_fiscais/', null=True, blank=True)
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    observacao = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Entrada de {self.quantidade} unidades de {self.produto.nome}"
+
+class Saida(models.Model):
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
+    quantidade = models.IntegerField()
+    data = models.DateTimeField(default=timezone.now)
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    destino = models.CharField(max_length=200)
+    observacao = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Saída de {self.quantidade} unidades de {self.produto.nome}"
+
+class LogAtividade(models.Model):
+    TIPOS_ACAO = [
+        ('criar', 'Criar'),
+        ('editar', 'Editar'),
+        ('remover', 'Remover'),
+        ('entrada', 'Entrada'),
+        ('saida', 'Saída'),
+    ]
+
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    tipo_acao = models.CharField(max_length=20, choices=TIPOS_ACAO)
+    descricao = models.TextField()
+    data = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-data']
+
+    def __str__(self):
+        return f"{self.usuario} - {self.get_tipo_acao_display()} - {self.data}"
